@@ -1,0 +1,777 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <link rel="stylesheet" href="css/leaflet.css">
+        <link rel="stylesheet" href="css/L.Control.Layers.Tree.css">
+        <link rel="stylesheet" href="css/L.Control.Locate.min.css">
+        <link rel="stylesheet" href="css/qgis2web.css">
+        <link rel="stylesheet" href="css/fontawesome-all.min.css">
+        <link rel="stylesheet" href="css/MarkerCluster.css">
+        <link rel="stylesheet" href="css/MarkerCluster.Default.css">
+        <link rel="stylesheet" href="css/leaflet-search.css">
+        <style>
+        html, body, #map {
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+        }
+        </style>
+        <title>Thaha Municipality</title>
+    </head>
+    <body>
+        <div id="map">
+        </div>
+        <script src="js/qgis2web_expressions.js"></script>
+        <script src="js/leaflet.js"></script>
+        <script src="js/L.Control.Layers.Tree.min.js"></script>
+        <script src="js/L.Control.Locate.min.js"></script>
+        <script src="js/multi-style-layer.js"></script>
+        <script src="js/leaflet.rotatedMarker.js"></script>
+        <script src="js/leaflet.pattern.js"></script>
+        <script src="js/leaflet-hash.js"></script>
+        <script src="js/Autolinker.min.js"></script>
+        <script src="js/rbush.min.js"></script>
+        <script src="js/labelgun.min.js"></script>
+        <script src="js/labels.js"></script>
+        <script src="js/leaflet.markercluster.js"></script>
+        <script src="js/leaflet-search.js"></script>
+        <script src="data/PopulationDensity_2.js"></script>
+        <script src="data/WardBoundary_3.js"></script>
+        <script src="data/PlaceofWorship_4.js"></script>
+        <script src="data/EducationalInstitute_5.js"></script>
+        <script src="data/Settlement_6.js"></script>
+        <script src="data/Thaha_road_grouped_7.js"></script>
+        <script>
+        var highlightLayer;
+        function highlightFeature(e) {
+            highlightLayer = e.target;
+
+            if (e.target.feature.geometry.type === 'LineString' || e.target.feature.geometry.type === 'MultiLineString') {
+              highlightLayer.setStyle({
+                color: '#ffff00',
+              });
+            } else {
+              highlightLayer.setStyle({
+                fillColor: '#ffff00',
+                fillOpacity: 1
+              });
+            }
+            highlightLayer.openPopup();
+        }
+        var map = L.map('map', {
+            zoomControl:false, maxZoom:28, minZoom:1
+        })
+        var hash = new L.Hash(map);
+        map.attributionControl.setPrefix('<a href="https://github.com/tomchadwin/qgis2web" target="_blank">qgis2web</a> &middot; <a href="https://leafletjs.com" title="A JS library for interactive maps">Leaflet</a> &middot; <a href="https://qgis.org">QGIS</a>');
+        var autolinker = new Autolinker({truncate: {length: 30, location: 'smart'}});
+        // remove popup's row if "visible-with-data"
+        function removeEmptyRowsFromPopupContent(content, feature) {
+         var tempDiv = document.createElement('div');
+         tempDiv.innerHTML = content;
+         var rows = tempDiv.querySelectorAll('tr');
+         for (var i = 0; i < rows.length; i++) {
+             var td = rows[i].querySelector('td.visible-with-data');
+             var key = td ? td.id : '';
+             if (td && td.classList.contains('visible-with-data') && feature.properties[key] == null) {
+                 rows[i].parentNode.removeChild(rows[i]);
+             }
+         }
+         return tempDiv.innerHTML;
+        }
+        // add class to format popup if it contains media
+		function addClassToPopupIfMedia(content, popup) {
+			var tempDiv = document.createElement('div');
+			tempDiv.innerHTML = content;
+			if (tempDiv.querySelector('td img')) {
+				popup._contentNode.classList.add('media');
+					// Delay to force the redraw
+					setTimeout(function() {
+						popup.update();
+					}, 10);
+			} else {
+				popup._contentNode.classList.remove('media');
+			}
+		}
+        var title = new L.Control({'position':'topright'});
+        title.onAdd = function (map) {
+            this._div = L.DomUtil.create('div', 'info');
+            this.update();
+            return this._div;
+        };
+        title.update = function () {
+            this._div.innerHTML = '<h2>Thaha Municipality</h2>';
+        };
+        title.addTo(map);
+        var abstract = new L.Control({'position':'bottomright'});
+        abstract.onAdd = function (map) {
+            this._div = L.DomUtil.create('div',
+            'leaflet-control abstract');
+            this._div.id = 'abstract'
+
+                abstract.show();
+                return this._div;
+            };
+            abstract.show = function () {
+                this._div.classList.remove("abstract");
+                this._div.classList.add("abstractUncollapsed");
+                this._div.innerHTML = 'This Map shows Road Network, Settlement, Educational Institute, Place of Worship, Population Density and Ward wise Population Distribution Information of Thaha Municipality, Bagmati Province.';
+        };
+        abstract.addTo(map);
+        var zoomControl = L.control.zoom({
+            position: 'topleft'
+        }).addTo(map);
+        L.control.locate({locateOptions: {maxZoom: 19}}).addTo(map);
+        var bounds_group = new L.featureGroup([]);
+        function setBounds() {
+            if (bounds_group.getLayers().length) {
+                map.fitBounds(bounds_group.getBounds());
+            }
+        }
+        map.createPane('pane_GoogleMap_0');
+        map.getPane('pane_GoogleMap_0').style.zIndex = 400;
+        var layer_GoogleMap_0 = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+            pane: 'pane_GoogleMap_0',
+            opacity: 1.0,
+            attribution: '<a href="https://www.google.at/permissions/geoguidelines/attr-guide.html">Map data ©2015 Google</a>',
+            minZoom: 1,
+            maxZoom: 28,
+            minNativeZoom: 0,
+            maxNativeZoom: 20
+        });
+        layer_GoogleMap_0;
+        map.addLayer(layer_GoogleMap_0);
+        map.createPane('pane_ReferenceMap_1');
+        map.getPane('pane_ReferenceMap_1').style.zIndex = 401;
+        var layer_ReferenceMap_1 = L.tileLayer('https://a.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png', {
+            pane: 'pane_ReferenceMap_1',
+            opacity: 1.0,
+            attribution: '<a href="https://cartodb.com/basemaps/">Map tiles by CartoDB, under CC BY 3.0. Data by OpenStreetMap, under ODbL.</a>',
+            minZoom: 1,
+            maxZoom: 28,
+            minNativeZoom: 0,
+            maxNativeZoom: 20
+        });
+        layer_ReferenceMap_1;
+        map.addLayer(layer_ReferenceMap_1);
+        function pop_PopulationDensity_2(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                    if (typeof layer.closePopup == 'function') {
+                        layer.closePopup();
+                    } else {
+                        layer.eachLayer(function(feature){
+                            feature.closePopup()
+                        });
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">District</th>\
+                        <td>' + (feature.properties['DISTRICT'] !== null ? autolinker.link(feature.properties['DISTRICT'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Name</th>\
+                        <td>' + (feature.properties['GaPa_NaPa'] !== null ? autolinker.link(feature.properties['GaPa_NaPa'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Ward No.</th>\
+                        <td>' + (feature.properties['NEW_WARD_N'] !== null ? autolinker.link(feature.properties['NEW_WARD_N'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Provience</th>\
+                        <td>' + (feature.properties['Provience'] !== null ? autolinker.link(feature.properties['Provience'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Total Populaion</th>\
+                        <td>' + (feature.properties['Total_Popn'] !== null ? autolinker.link(feature.properties['Total_Popn'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Male Population</th>\
+                        <td>' + (feature.properties['Male'] !== null ? autolinker.link(feature.properties['Male'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Female Population</th>\
+                        <td>' + (feature.properties['Female'] !== null ? autolinker.link(feature.properties['Female'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Total HHs</th>\
+                        <td>' + (feature.properties['Total_HHs'] !== null ? autolinker.link(feature.properties['Total_HHs'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Avg HHs Size</th>\
+                        <td>' + (feature.properties['Avg_HHs_size'] !== null ? autolinker.link(feature.properties['Avg_HHs_size'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Sex Ratio</th>\
+                        <td>' + (feature.properties['Sex_ratio'] !== null ? autolinker.link(feature.properties['Sex_ratio'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Popolation Density</th>\
+                        <td>' + (feature.properties['Popn_density'] !== null ? autolinker.link(feature.properties['Popn_density'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_PopulationDensity_2_0(feature) {
+            if (feature.properties['Popn_density'] >= 102.000000 && feature.properties['Popn_density'] <= 155.200000 ) {
+                return {
+                pane: 'pane_PopulationDensity_2',
+                opacity: 1,
+                color: 'rgba(128,14,16,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(97,240,78,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['Popn_density'] >= 155.200000 && feature.properties['Popn_density'] <= 208.400000 ) {
+                return {
+                pane: 'pane_PopulationDensity_2',
+                opacity: 1,
+                color: 'rgba(128,14,16,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(156,199,59,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['Popn_density'] >= 208.400000 && feature.properties['Popn_density'] <= 261.600000 ) {
+                return {
+                pane: 'pane_PopulationDensity_2',
+                opacity: 1,
+                color: 'rgba(128,14,16,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(215,158,40,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['Popn_density'] >= 261.600000 && feature.properties['Popn_density'] <= 314.800000 ) {
+                return {
+                pane: 'pane_PopulationDensity_2',
+                opacity: 1,
+                color: 'rgba(128,14,16,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(246,106,30,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['Popn_density'] >= 314.800000 && feature.properties['Popn_density'] <= 368.000000 ) {
+                return {
+                pane: 'pane_PopulationDensity_2',
+                opacity: 1,
+                color: 'rgba(128,14,16,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(246,45,30,1.0)',
+                interactive: true,
+            }
+            }
+        }
+        map.createPane('pane_PopulationDensity_2');
+        map.getPane('pane_PopulationDensity_2').style.zIndex = 402;
+        map.getPane('pane_PopulationDensity_2').style['mix-blend-mode'] = 'normal';
+        var layer_PopulationDensity_2 = new L.geoJson(json_PopulationDensity_2, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_PopulationDensity_2',
+            layerName: 'layer_PopulationDensity_2',
+            pane: 'pane_PopulationDensity_2',
+            onEachFeature: pop_PopulationDensity_2,
+            style: style_PopulationDensity_2_0,
+        });
+        bounds_group.addLayer(layer_PopulationDensity_2);
+        map.addLayer(layer_PopulationDensity_2);
+        function pop_WardBoundary_3(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                    if (typeof layer.closePopup == 'function') {
+                        layer.closePopup();
+                    } else {
+                        layer.eachLayer(function(feature){
+                            feature.closePopup()
+                        });
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">GaPa_NaPa</th>\
+                        <td>' + (feature.properties['GaPa_NaPa'] !== null ? autolinker.link(feature.properties['GaPa_NaPa'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Ward No.</th>\
+                        <td>' + (feature.properties['NEW_WARD_N'] !== null ? autolinker.link(feature.properties['NEW_WARD_N'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_WardBoundary_3_0() {
+            return {
+                pane: 'pane_WardBoundary_3',
+                opacity: 1,
+                color: 'rgba(106,106,106,1.0)',
+                dashArray: '',
+                lineCap: 'square',
+                lineJoin: 'bevel',
+                weight: 6.0,
+                fillOpacity: 0,
+                interactive: true,
+            }
+        }
+        map.createPane('pane_WardBoundary_3');
+        map.getPane('pane_WardBoundary_3').style.zIndex = 403;
+        map.getPane('pane_WardBoundary_3').style['mix-blend-mode'] = 'normal';
+        var layer_WardBoundary_3 = new L.geoJson(json_WardBoundary_3, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_WardBoundary_3',
+            layerName: 'layer_WardBoundary_3',
+            pane: 'pane_WardBoundary_3',
+            onEachFeature: pop_WardBoundary_3,
+            style: style_WardBoundary_3_0,
+        });
+        bounds_group.addLayer(layer_WardBoundary_3);
+        map.addLayer(layer_WardBoundary_3);
+        function pop_PlaceofWorship_4(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                    if (typeof layer.closePopup == 'function') {
+                        layer.closePopup();
+                    } else {
+                        layer.eachLayer(function(feature){
+                            feature.closePopup()
+                        });
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2"><strong>Religion</strong><br />' + (feature.properties['religion'] !== null ? autolinker.link(feature.properties['religion'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Name</th>\
+                        <td>' + (feature.properties['name'] !== null ? autolinker.link(feature.properties['name'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_PlaceofWorship_4_0() {
+            return {
+                pane: 'pane_PlaceofWorship_4',
+                radius: 8.0,
+                opacity: 1,
+                color: 'rgba(50,87,128,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(72,123,182,1.0)',
+                interactive: true,
+            }
+        }
+        map.createPane('pane_PlaceofWorship_4');
+        map.getPane('pane_PlaceofWorship_4').style.zIndex = 404;
+        map.getPane('pane_PlaceofWorship_4').style['mix-blend-mode'] = 'normal';
+        var layer_PlaceofWorship_4 = new L.geoJson(json_PlaceofWorship_4, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_PlaceofWorship_4',
+            layerName: 'layer_PlaceofWorship_4',
+            pane: 'pane_PlaceofWorship_4',
+            onEachFeature: pop_PlaceofWorship_4,
+            pointToLayer: function (feature, latlng) {
+                var context = {
+                    feature: feature,
+                    variables: {}
+                };
+                return L.circleMarker(latlng, style_PlaceofWorship_4_0(feature));
+            },
+        });
+        bounds_group.addLayer(layer_PlaceofWorship_4);
+        map.addLayer(layer_PlaceofWorship_4);
+        function pop_EducationalInstitute_5(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                    if (typeof layer.closePopup == 'function') {
+                        layer.closePopup();
+                    } else {
+                        layer.eachLayer(function(feature){
+                            feature.closePopup()
+                        });
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">School Name</th>\
+                        <td>' + (feature.properties['name'] !== null ? autolinker.link(feature.properties['name'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Place</th>\
+                        <td>' + (feature.properties['addr_hamle'] !== null ? autolinker.link(feature.properties['addr_hamle'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_EducationalInstitute_5_0() {
+            return {
+                pane: 'pane_EducationalInstitute_5',
+                radius: 8.0,
+                opacity: 1,
+                color: 'rgba(255,255,255,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(0,0,0,1.0)',
+                interactive: true,
+            }
+        }
+        map.createPane('pane_EducationalInstitute_5');
+        map.getPane('pane_EducationalInstitute_5').style.zIndex = 405;
+        map.getPane('pane_EducationalInstitute_5').style['mix-blend-mode'] = 'normal';
+        var layer_EducationalInstitute_5 = new L.geoJson(json_EducationalInstitute_5, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_EducationalInstitute_5',
+            layerName: 'layer_EducationalInstitute_5',
+            pane: 'pane_EducationalInstitute_5',
+            onEachFeature: pop_EducationalInstitute_5,
+            pointToLayer: function (feature, latlng) {
+                var context = {
+                    feature: feature,
+                    variables: {}
+                };
+                return L.circleMarker(latlng, style_EducationalInstitute_5_0(feature));
+            },
+        });
+        var cluster_EducationalInstitute_5 = new L.MarkerClusterGroup({showCoverageOnHover: false,
+            spiderfyDistanceMultiplier: 2});
+        cluster_EducationalInstitute_5.addLayer(layer_EducationalInstitute_5);
+
+        bounds_group.addLayer(layer_EducationalInstitute_5);
+        cluster_EducationalInstitute_5.addTo(map);
+        function pop_Settlement_6(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                    if (typeof layer.closePopup == 'function') {
+                        layer.closePopup();
+                    } else {
+                        layer.eachLayer(function(feature){
+                            feature.closePopup()
+                        });
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">SET_NAME</th>\
+                        <td>' + (feature.properties['SET_NAME'] !== null ? autolinker.link(feature.properties['SET_NAME'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">गाँउको नाम</th>\
+                        <td>' + (feature.properties['Nep_Name'] !== null ? autolinker.link(feature.properties['Nep_Name'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_Settlement_6_0() {
+            return {
+                pane: 'pane_Settlement_6',
+                radius: 2.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(145,82,45,1.0)',
+                interactive: true,
+            }
+        }
+        map.createPane('pane_Settlement_6');
+        map.getPane('pane_Settlement_6').style.zIndex = 406;
+        map.getPane('pane_Settlement_6').style['mix-blend-mode'] = 'normal';
+        var layer_Settlement_6 = new L.geoJson(json_Settlement_6, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_Settlement_6',
+            layerName: 'layer_Settlement_6',
+            pane: 'pane_Settlement_6',
+            onEachFeature: pop_Settlement_6,
+            pointToLayer: function (feature, latlng) {
+                var context = {
+                    feature: feature,
+                    variables: {}
+                };
+                return L.circleMarker(latlng, style_Settlement_6_0(feature));
+            },
+        });
+        bounds_group.addLayer(layer_Settlement_6);
+        map.addLayer(layer_Settlement_6);
+        function pop_Thaha_road_grouped_7(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                    if (typeof layer.closePopup == 'function') {
+                        layer.closePopup();
+                    } else {
+                        layer.eachLayer(function(feature){
+                            feature.closePopup()
+                        });
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">name</th>\
+                        <td>' + (feature.properties['name'] !== null ? autolinker.link(feature.properties['name'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">ref</th>\
+                        <td>' + (feature.properties['ref'] !== null ? autolinker.link(feature.properties['ref'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_Thaha_road_grouped_7_0(feature) {
+            switch(String(feature.properties['ref'])) {
+                case '[\'1\', \'30DR020\', \'31DR001\', \'31DR003\']':
+                    return {
+                pane: 'pane_Thaha_road_grouped_7',
+                opacity: 1,
+                color: 'rgba(0,0,0,1.0)',
+                dashArray: '',
+                lineCap: 'round',
+                lineJoin: 'round',
+                weight: 4.0,
+                fillOpacity: 0,
+                interactive: true,
+            }
+                    break;
+                case '[\'F180\', \'F20\']':
+                    return {
+                pane: 'pane_Thaha_road_grouped_7',
+                opacity: 1,
+                color: 'rgba(0,0,0,1.0)',
+                dashArray: '',
+                lineCap: 'round',
+                lineJoin: 'round',
+                weight: 6.0,
+                fillOpacity: 0,
+                interactive: true,
+            }
+                    break;
+                case 'NH41':
+                    return {
+                pane: 'pane_Thaha_road_grouped_7',
+                opacity: 1,
+                color: 'rgba(0,0,0,1.0)',
+                dashArray: '',
+                lineCap: 'round',
+                lineJoin: 'round',
+                weight: 8.0,
+                fillOpacity: 0,
+                interactive: true,
+            }
+                    break;
+            }
+        }
+        function style_Thaha_road_grouped_7_1(feature) {
+            switch(String(feature.properties['ref'])) {
+                case '[\'1\', \'30DR020\', \'31DR001\', \'31DR003\']':
+                    return {
+                pane: 'pane_Thaha_road_grouped_7',
+                opacity: 1,
+                color: 'rgba(133,108,96,1.0)',
+                dashArray: '',
+                lineCap: 'round',
+                lineJoin: 'round',
+                weight: 3.0,
+                fillOpacity: 0,
+                interactive: true,
+            }
+                    break;
+                case '[\'F180\', \'F20\']':
+                    return {
+                pane: 'pane_Thaha_road_grouped_7',
+                opacity: 1,
+                color: 'rgba(219,129,87,1.0)',
+                dashArray: '',
+                lineCap: 'round',
+                lineJoin: 'round',
+                weight: 4.0,
+                fillOpacity: 0,
+                interactive: true,
+            }
+                    break;
+                case 'NH41':
+                    return {
+                pane: 'pane_Thaha_road_grouped_7',
+                opacity: 1,
+                color: 'rgba(255,96,17,1.0)',
+                dashArray: '',
+                lineCap: 'round',
+                lineJoin: 'round',
+                weight: 4.0,
+                fillOpacity: 0,
+                interactive: true,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_Thaha_road_grouped_7');
+        map.getPane('pane_Thaha_road_grouped_7').style.zIndex = 407;
+        map.getPane('pane_Thaha_road_grouped_7').style['mix-blend-mode'] = 'normal';
+        var layer_Thaha_road_grouped_7 = new L.geoJson.multiStyle(json_Thaha_road_grouped_7, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_Thaha_road_grouped_7',
+            layerName: 'layer_Thaha_road_grouped_7',
+            pane: 'pane_Thaha_road_grouped_7',
+            onEachFeature: pop_Thaha_road_grouped_7,
+            styles: [style_Thaha_road_grouped_7_0,style_Thaha_road_grouped_7_1,]
+        });
+        bounds_group.addLayer(layer_Thaha_road_grouped_7);
+        map.addLayer(layer_Thaha_road_grouped_7);
+        var baseMaps = {};
+        var overlaysTree = [
+            {label: 'Thaha_road_grouped<br /><table><tr><td style="text-align: center;"><img src="legend/Thaha_road_grouped_7_DistrictRoad0.png" /></td><td>District Road</td></tr><tr><td style="text-align: center;"><img src="legend/Thaha_road_grouped_7_FedderRoad1.png" /></td><td>Fedder Road</td></tr><tr><td style="text-align: center;"><img src="legend/Thaha_road_grouped_7_NationalHighway2.png" /></td><td>National Highway</td></tr></table>', layer: layer_Thaha_road_grouped_7},
+            {label: '<img src="legend/Settlement_6.png" /> Settlement', layer: layer_Settlement_6},
+            {label: '<img src="legend/EducationalInstitute_5.png" /> Educational Institute', layer: cluster_EducationalInstitute_5},
+            {label: '<img src="legend/PlaceofWorship_4.png" /> Place of Worship', layer: layer_PlaceofWorship_4},
+            {label: '<img src="legend/WardBoundary_3.png" /> Ward Boundary', layer: layer_WardBoundary_3},
+            {label: 'Population Density<br /><table><tr><td style="text-align: center;"><img src="legend/PopulationDensity_2_1021550.png" /></td><td>102 - 155</td></tr><tr><td style="text-align: center;"><img src="legend/PopulationDensity_2_1552081.png" /></td><td>155 - 208</td></tr><tr><td style="text-align: center;"><img src="legend/PopulationDensity_2_2082622.png" /></td><td>208 - 262</td></tr><tr><td style="text-align: center;"><img src="legend/PopulationDensity_2_2623153.png" /></td><td>262 - 315</td></tr><tr><td style="text-align: center;"><img src="legend/PopulationDensity_2_3153684.png" /></td><td>315 - 368</td></tr></table>', layer: layer_PopulationDensity_2},
+            {label: "Reference Map", layer: layer_ReferenceMap_1},
+            {label: "Google Map", layer: layer_GoogleMap_0},]
+        var lay = L.control.layers.tree(null, overlaysTree,{
+            //namedToggle: true,
+            //selectorBack: false,
+            //closedSymbol: '&#8862; &#x1f5c0;',
+            //openedSymbol: '&#8863; &#x1f5c1;',
+            //collapseAll: 'Collapse all',
+            //expandAll: 'Expand all',
+            collapsed: true,
+        });
+        lay.addTo(map);
+        setBounds();
+        map.addControl(new L.Control.Search({
+            layer: layer_Settlement_6,
+            initial: false,
+            hideMarkerOnCollapse: true,
+            propertyName: 'SET_NAME'}));
+        document.getElementsByClassName('search-button')[0].className +=
+         ' fa fa-binoculars';
+        resetLabels([layer_PopulationDensity_2,layer_WardBoundary_3,layer_Settlement_6]);
+        map.on("zoomend", function(){
+            resetLabels([layer_PopulationDensity_2,layer_WardBoundary_3,layer_Settlement_6]);
+        });
+        map.on("layeradd", function(){
+            resetLabels([layer_PopulationDensity_2,layer_WardBoundary_3,layer_Settlement_6]);
+        });
+        map.on("layerremove", function(){
+            resetLabels([layer_PopulationDensity_2,layer_WardBoundary_3,layer_Settlement_6]);
+        });
+        </script>
+    </body>
+</html>
